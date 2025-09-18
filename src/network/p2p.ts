@@ -129,14 +129,14 @@ class P2PNode {
         const serializedTx = serialize_tx(tx);
         const jsonString = JSON.stringify(serializedTx);
         await this.node.services.pubsub.publish('bytechain:transactions', new TextEncoder().encode(jsonString));
-        print('Published new transaction to network.');
+        print(`Published new transaction: tx_id: ${tx.tx_id}`);
     }
 
     async publishBlock(block: Block) {
         const serializedBlock = serialize_block(block);
         const jsonString = JSON.stringify(serializedBlock);
         await this.node.services.pubsub.publish('bytechain:blocks', new TextEncoder().encode(jsonString));
-        print(`Published new block to network: Height: ${block.block_header.block_height}, Block Hash: ${block.block_header.block_hash}`);
+        print(`New block published: Height: ${block.block_header.block_height}, Hash: ${block.block_header.block_hash}, tx count: ${block.transactions.length}`);
     }
 }
 

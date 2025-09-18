@@ -13,22 +13,22 @@ const io = new Server(server, { cors: { origin: "*" } });
 bc_node.io = io;
 
 async function main() {
-  await bc_node.start();
+    await bc_node.start();
 
-  server.listen(3000, () => {});
+    server.listen(3000, () => {});
 
-  setInterval(() => {
-    bc_node.pubBlock();
-  }, 2000);
+    setInterval(() => {
+        bc_node.pubBlock();
+    }, 2000);
 }
 
 main().catch((err) => {
-  console.error(`Failed to start ByteChain Node: ${err}`);
-  process.exit(1);
+    console.error(`Failed to start ByteChain Node: ${err}`);
+    process.exit(1);
 });
 
 process.on("SIGINT", async () => {
-  print("SIGINT received, stopping node...");
-  await bc_node.stop();
-  process.exit(0);
+    print("SIGINT received, stopping node...");
+    await bc_node.stop();
+    process.exit(0);
 });
