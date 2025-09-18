@@ -1,6 +1,5 @@
 export enum OpCode {
     PUSH_CONST = 0x01,
-    PUSH_INT = 0x02,
     PUSH_FLOAT = 0x03,
     PUSH_TRUE = 0x04,
     PUSH_FALSE = 0x05,
@@ -52,7 +51,6 @@ export enum OpCode {
 
 export const OpcodeName: Record<number, string> = {
     [OpCode.PUSH_CONST]: "PUSH_CONST",
-    [OpCode.PUSH_INT]: "PUSH_INT",
     [OpCode.PUSH_FLOAT]: "PUSH_FLOAT",
     [OpCode.PUSH_TRUE]: "PUSH_TRUE",
     [OpCode.PUSH_FALSE]: "PUSH_FALSE",

@@ -40,7 +40,7 @@ class Transaction {
         this.publicKey = publicKey;
         this.signature = signature;
         this.nonce = nonce;
-        this.tx_id = "";
+        this.tx_id = this.compute_tx_id();;
 
         if (this.type === Tx_Type.CONTRACT || bytecode !== undefined) {
             this.bytecode = bytecode;
@@ -115,7 +115,6 @@ class Transaction {
             const sign = base58.encode(compact_sig);
 
             this.signature = sign;
-            this.tx_id = this.compute_tx_id();
 
             return this;
         } catch (err) {

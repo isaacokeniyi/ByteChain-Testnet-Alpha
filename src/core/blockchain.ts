@@ -33,8 +33,7 @@ class BlockChain {
 
     genesis_block() {
         const gen_amount = 1000000000;
-        // const gen_recipient = "2K2NFr5cFUfksGENqtZyx4BdgRvGWq97JAs";
-        const gen_recipient = "2JwUWiGa8Tn3Ybjd5RqoGwN5Wei95UTNUFk";
+        const gen_recipient = "GENESIS_RECIPIENT";
         const tx = new Transaction(gen_amount, BC_NAME, gen_recipient, Tx_Type.BYTE_TX, Date.now(), BC_NAME_PUB, "", 0)
         this.tx_pool.push(tx);
         const txs = this.tx_pool;
