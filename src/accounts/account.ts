@@ -32,7 +32,7 @@ class Account {
     // Generates the public key from a private key
     static create_pub_key(priv_key: string): string {
         const key_pair = ec.keyFromPrivate(priv_key);
-        const pub_key = key_pair.getPublic('hex');
+        const pub_key = key_pair.getPublic(true, 'hex');
         return pub_key;
     }
 

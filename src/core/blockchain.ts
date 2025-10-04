@@ -2,44 +2,38 @@ import {
     BLOCK_REWARD, BLOCK_TIME_DIFF,
     MIN_DIFFICULTY, MAX_DIFFICULTY,
     BLOCK_WINDOW, GEN_PREV_HASH,
-    BC_NAME, BC_NAME_PUB, Tx_Type
+    BC_NAME, BC_NAME_PUB
 } from "../utils/constants.js";
 import Transaction from "./transaction.js";
 import Block from "./block.js";
-import { ByteVM } from "../vm/byte-vm.js";
 
 
-interface Contract {
-    creator: string,
-    bytecode: string,
+interface AccState {
+    nonce: number,
+    balance: number,
 }
 
 class BlockChain {
     tx_pool: Transaction[];
     chain: Block[];
     difficulty: number = MIN_DIFFICULTY;
-    addr_bal: Map<string, number>;
-    addr_nonce: Map<string, number>;
-    contract_pool: Map<string, Contract>;
+    addr_state: Map<string, AccState>;
 
     constructor() {
         this.tx_pool = [];
         this.chain = [];
-        this.contract_pool = new Map<string, Contract>();
-        this.addr_bal = new Map<string, number>();
-        this.addr_nonce = new Map<string, number>();
+        this.addr_state = new Map<string, AccState>();
         this.genesis_block();
     }
 
     genesis_block() {
         const gen_amount = 1000000000;
-        const gen_recipient = "GENESIS_RECIPIENT";
-        const tx = new Transaction(gen_amount, BC_NAME, gen_recipient, Tx_Type.BYTE_TX, Date.now(), BC_NAME_PUB, "", 0)
+        const gen_recipient = "BC-GEN";
+        const tx = new Transaction(gen_amount, BC_NAME, gen_recipient, Date.now(), BC_NAME_PUB, "", 0)
         this.tx_pool.push(tx);
         const txs = this.tx_pool;
         const new_block = new Block(0, MIN_DIFFICULTY, GEN_PREV_HASH, txs);
-        const recipient_bal = this.addr_bal.get(gen_recipient) ?? 0;
-        this.addr_bal.set(gen_recipient, recipient_bal + gen_amount);
+        this.credit_addr(gen_recipient, gen_amount);
         new_block.set_block_props();
 
         this.chain.push(new_block);
@@ -47,80 +41,79 @@ class BlockChain {
         this.difficulty = this.calc_difficulty();
     }
 
+    ensure_account(addr: string) {
+        if (!this.addr_state.has(addr)) {
+            this.addr_state.set(addr, { nonce: 0, balance: 0 });
+        }
+    }
+
+    get_nonce(addr: string) {
+        this.ensure_account(addr);
+        const state = this.addr_state.get(addr)!;
+        return state.nonce;
+    }
+
+    get_balance(addr: string) {
+        this.ensure_account(addr);
+        const state = this.addr_state.get(addr)!;
+        return state.balance;
+    }
+
+    update_nonce(addr: string) {
+        this.ensure_account(addr);
+        const state = this.addr_state.get(addr)!;
+        state.nonce += 1;
+    }
+
+    credit_addr(addr: string, amount: number) {
+        this.ensure_account(addr);
+        const state = this.addr_state.get(addr)!;
+        state.balance += amount;
+    }
+
+    debit_addr(addr: string, amount: number) {
+        this.ensure_account(addr);
+        const state = this.addr_state.get(addr)!;
+        if (state.balance < amount) throw new Error("Insufficient balance");
+        state.balance -= amount;
+    }
+
     get_last_block(): Block {
         const last_block = this.chain[this.chain.length - 1];
-
         return last_block;
     }
 
     add_new_tx(tx: Transaction): Transaction {
-        const { type, amount, sender, recipient, bytecode, contract_addr } = tx;
+        const { amount, sender, recipient } = tx;
         const nonce = tx.get_tx_nonce();
      
-        if (!type || amount === undefined || !sender || !recipient || nonce === undefined) {
+        if (amount === undefined || !sender || !recipient || nonce === undefined) {
             throw new Error('Transaction data is incomplete')
         }
 
-        const prev_nonce = this.addr_nonce.get(sender) ?? 0;
-        const sender_bal = this.addr_bal.get(sender) ?? 0;
+        const prev_nonce = this.get_nonce(sender);
 
         try {
-            if (type === Tx_Type.BYTE_TX) {
-                if (sender === BC_NAME) {
-                    this.tx_pool.push(tx);
-                    return tx;
-                } else {
-                    if(amount < 0) {
-                        throw new Error("Invalid amount");
-                    }
-
-                    if (amount > sender_bal) {
-                        throw new Error("Insufficient fund");
-                    }
-
-                    if (nonce !== prev_nonce + 1) {
-                        throw new Error("Invalid nonce value");
-                    }
-
-                    if (!tx.verify_tx_sig()) {
-                        throw new Error("Invalid Transaction");
-                    }
-                    
-                    this.tx_pool.push(tx);
-                    this.addr_nonce.set(sender, prev_nonce + 1);
-                    this.addr_bal.set(sender, sender_bal - amount);
-                }
-            } else if (type === Tx_Type.CONTRACT) {
-                if (bytecode === undefined || contract_addr === undefined) {
-                    throw new Error("Incomplete transaction detail");
-                }
-
-                if (nonce !== prev_nonce + 1) {
-                    throw new Error("Invalid nonce value");
-                }
-
-                if (!tx.verify_tx_sig()) {
-                    throw new Error("Invalid Transaction");
-                }
-                
+            if (sender === BC_NAME) {
                 this.tx_pool.push(tx);
-                this.addr_nonce.set(sender, prev_nonce + 1);
-            } else if (type === Tx_Type.CONTRACT_CALL) {
-                if (nonce === undefined || contract_addr === undefined) {
-                    throw new Error("Incomplete transaction detail");
-                }
-
-                if (nonce !== prev_nonce + 1) {
-                    throw new Error("Invalid nonce value");
-                }
-
-                if (!tx.verify_tx_sig()) {
-                    throw new Error("Invalid Transaction");
-                }
-                
-                this.tx_pool.push(tx);
-                this.addr_nonce.set(sender, prev_nonce + 1);
+                return tx;
             }
+
+            if(amount < 0) {
+                throw new Error("Invalid amount");
+            }
+
+            if (nonce !== prev_nonce + 1) {
+                throw new Error("Invalid nonce value");
+            }
+
+            if (!tx.verify_tx_sig()) {
+                throw new Error("Invalid Transaction");
+            }
+            
+            this.update_nonce(sender);
+            this.debit_addr(sender, amount);
+            this.tx_pool.push(tx);
 
             return tx;
         } catch (err) {
@@ -136,33 +129,9 @@ class BlockChain {
             const block = new Block(n_block_height, this.difficulty, block_hash, transactions);
 
             for (const transaction of transactions) {
-                const { type, amount,  recipient, contract_addr } = transaction;
+                const { amount,  recipient } = transaction;
                 
-                if (type === Tx_Type.BYTE_TX) {
-                    const recipient_bal = this.addr_bal.get(recipient) ?? 0;
-                    this.addr_bal.set(recipient, recipient_bal + amount);
-                } else if (type === Tx_Type.CONTRACT) {
-                    const sender = transaction.sender;
-                    const bytecode = transaction.bytecode!;
-                    const contract_addr = transaction.contract_addr!;
-
-                    const new_contract: Contract = {
-                        creator: sender,
-                        bytecode
-                    }
-
-                    this.contract_pool.set(contract_addr, new_contract);
-                } else if (type === Tx_Type.CONTRACT_CALL) {
-                    const contract = this.contract_pool.get(contract_addr!);
-                    const bc = contract?.bytecode;
-                    const contract_obj = JSON.parse(bc!);
-                    const { bytecode } = contract_obj;
-
-                    const vm = new ByteVM(bytecode);
-                    vm.run();
-                } else {
-                    throw new Error('Amount is possibly undefined');
-                }
+                this.credit_addr(recipient, amount);
             }
 
             this.tx_pool = [];
@@ -175,7 +144,7 @@ class BlockChain {
 
     mine_block(miner_addr: string): Block {
         try {
-            const reward_tx = new Transaction(BLOCK_REWARD, BC_NAME, miner_addr, Tx_Type.BYTE_TX, Date.now(), BC_NAME_PUB, "", 0);
+            const reward_tx = new Transaction(BLOCK_REWARD, BC_NAME, miner_addr, Date.now(), BC_NAME_PUB, "", 0);
 
             this.add_new_tx(reward_tx);
 
@@ -213,27 +182,30 @@ class BlockChain {
         }
     }
 
-    // Todo implement this methods properly
-    is_valid_chain(chain_info: BlockChain): boolean {
-        const chain = chain_info.chain;
-
-        for (const block_index in chain) {
-            const block = chain[block_index];
-            const transactions = block.transactions;
-            for (let tx_index = 0; tx_index < transactions.length; tx_index += 1) {
-                const tx = transactions[tx_index];
-                if (!tx.is_valid_tx()) {
-                    throw new Error(`Invalid transaction at block ${block.block_header.block_height}`);
-                }
-            }
-            return true;
+    static is_valid_chain(chain: Block[]): boolean {
+        for (const block of chain) {
+            block.contain_valid_tx();
         }
         return true;
     }
 
-    // sync_chain(local: BlockChain, remote: BlockChain): BlockChain {
-    //     return remote || local;
-    // }
+    sync_chain(remote: Block[]) {
+        if (remote.length > this.chain.length) {
+            BlockChain.is_valid_chain(remote);
+            this.chain = remote;
+
+            this.addr_state.clear();
+            for (const block of this.chain) {
+                for (const tx of block.transactions) {
+                    this.credit_addr(tx.recipient, tx.amount);
+                    if (tx.sender !== BC_NAME) {
+                        this.update_nonce(tx.sender);
+                        this.debit_addr(tx.sender, tx.amount);
+                    }
+                }
+            }
+        }
+    }
 }
 
 
