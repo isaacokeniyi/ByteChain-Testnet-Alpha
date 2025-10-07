@@ -13,17 +13,18 @@ function is_valid_priv_key(priv_key: string): boolean {
 
 class Account {
     private priv_key: Buffer;
-    pub_key: string;
-    blockchain_addr: string;
+    public  pub_key: string;
+    public  blockchain_addr: string;
 
     constructor(priv_key?: string) {
         if (priv_key) {
-            if (!is_valid_priv_key) {
-                throw new Error("Invalid private key provided");
+            if (!is_valid_priv_key(priv_key)) {
+                throw new Error("Invalid private key: must be a 64-character hex string");
             }
-            this.priv_key = Buffer.from(priv_key);
+            this.priv_key = Buffer.from(priv_key, 'hex');
         } else {
-            this.priv_key = Buffer.from(ec.genKeyPair().getPrivate('hex'));  
+            const priv_hex = ec.genKeyPair().getPrivate('hex');
+            this.priv_key = Buffer.from(priv_hex, 'hex');  
         }
         this.pub_key = Account.create_pub_key(this.priv_key.toString('hex'));
         this.blockchain_addr = Account.create_blockchain_addr(this.pub_key);
