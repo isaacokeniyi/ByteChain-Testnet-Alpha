@@ -26,7 +26,7 @@ class Account {
             this.priv_key = Buffer.from(ec.genKeyPair().getPrivate('hex'));  
         }
         this.pub_key = Account.create_pub_key(this.priv_key.toString('hex'));
-        this.blockchain_addr = Account.create_blockchain_addr(this.pub_key.toString);
+        this.blockchain_addr = Account.create_blockchain_addr(this.pub_key);
     }
 
     static new(): { priv_key: string, pub_key: string, blockchain_addr: string} {
