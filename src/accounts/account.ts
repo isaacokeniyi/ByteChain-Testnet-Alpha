@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import Buffer from 'buffer';
+import { Buffer } from 'buffer';
 import elliptic_pkg from 'elliptic';
 import base58 from 'bs58';
 import Transaction from '../core/transaction.js';
