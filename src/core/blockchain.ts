@@ -1,8 +1,9 @@
 import {
     BLOCK_REWARD, BLOCK_TIME_DIFF,
     MIN_DIFFICULTY, MAX_DIFFICULTY,
-    BLOCK_WINDOW, GEN_PREV_HASH,
-    BC_NAME, BC_NAME_PUB
+    BLOCK_WINDOW_DIFF, BLOCK_WINDOW_FEE,
+    GEN_PREV_HASH, BC_NAME, BC_NAME_PUB,
+    VANITY_ADDR
 } from "../utils/constants.js";
 import Transaction from "./transaction.js";
 import Block from "./block.js";
@@ -83,15 +84,41 @@ class BlockChain {
         return last_block;
     }
 
+    get_latest_blocks(window: number): Block[] {
+        let latest_blocks: Block[] = [];
+        const start = Math.max(0, this.chain.length - window);
+
+        for (let c = start; c < this.chain.length; c++) {
+            let n_block = this.chain[c];
+            latest_blocks.push(n_block);
+        }
+        
+        return latest_blocks;
+    }
+
+    calculate_dynamic_fee() {
+        const recent_blocks = this.get_latest_blocks(BLOCK_WINDOW_FEE);
+
+        if (recent_blocks.length === 0) return 0.001;
+        
+        const avg_tx_count = recent_blocks.reduce((sum, b) => sum + b.transactions.length, 0) / BLOCK_WINDOW_FEE;
+        const base_fee = 0.001;
+        const congestion_factor = avg_tx_count / 100;
+        const fee = base_fee * (1 + congestion_factor);
+
+        return Math.min(fee, 0.1);
+    }
+
     add_new_tx(tx: Transaction): Transaction {
-        const { amount, sender, recipient } = tx;
+        const { amount, sender, recipient, fee } = tx;
         const nonce = tx.get_tx_nonce();
      
-        if (amount === undefined || !sender || !recipient || nonce === undefined) {
+        if (amount === undefined || !sender || !recipient || fee === undefined || nonce === undefined) {
             throw new Error('Transaction data is incomplete')
         }
 
         const prev_nonce = this.get_nonce(sender);
+        const bc_fee = this.calculate_dynamic_fee();
 
         try {
             if (sender === BC_NAME) {
@@ -99,20 +126,16 @@ class BlockChain {
                 return tx;
             }
 
-            if(amount < 0) {
-                throw new Error("Invalid amount");
-            }
+            if(amount < 0) throw new Error("Invalid amount");
 
-            if (nonce !== prev_nonce + 1) {
-                throw new Error("Invalid nonce value");
-            }
+            if (fee < bc_fee) throw new Error("Fee not valid for current chain operation");
 
-            if (!tx.verify_tx_sig()) {
-                throw new Error("Invalid Transaction");
-            }
+            if (nonce !== prev_nonce + 1) throw new Error("Invalid nonce value");
+
+            if (!tx.verify_tx_sig()) throw new Error("Invalid Transaction signature");
             
             this.update_nonce(sender);
-            this.debit_addr(sender, amount);
+            this.debit_addr(sender, amount + fee);
             this.tx_pool.push(tx);
 
             return tx;
@@ -125,14 +148,19 @@ class BlockChain {
         try {
             const { block_height, block_hash } = this.get_last_block().block_header;
             const n_block_height = block_height + 1;
-            const transactions = this.tx_pool;
-            const block = new Block(n_block_height, this.difficulty, block_hash, transactions);
 
-            for (const transaction of transactions) {
-                const { amount,  recipient } = transaction;
-                
-                this.credit_addr(recipient, amount);
+            let t_fee = 0;
+            for (const tx of this.tx_pool) t_fee += tx.fee;
+
+            const fee_tx = new Transaction(t_fee, BC_NAME, VANITY_ADDR, Date.now(), BC_NAME_PUB, "", 0);
+            this.add_new_tx(fee_tx);
+            const transactions = this.tx_pool;
+            
+            for (const tx of transactions) {
+                this.credit_addr(tx.recipient, tx.amount);
             }
+
+            const block = new Block(n_block_height, this.difficulty, block_hash, transactions);
 
             this.tx_pool = [];
 
@@ -162,11 +190,11 @@ class BlockChain {
 
     calc_difficulty(): number {
         try {
-            if (this.chain.length < BLOCK_WINDOW) {
+            if (this.chain.length < BLOCK_WINDOW_DIFF) {
                 return this.difficulty;
             }
 
-            const prev_block_header = this.chain[this.chain.length - BLOCK_WINDOW].block_header;
+            const prev_block_header = this.chain[this.chain.length - BLOCK_WINDOW_DIFF].block_header;
             const n_block_header = this.get_last_block().block_header;
             const time_diff = n_block_header.timestamp - prev_block_header.timestamp;
 
@@ -184,7 +212,7 @@ class BlockChain {
 
     static is_valid_chain(chain: Block[]): boolean {
         for (const block of chain) {
-            block.contain_valid_tx();
+            block.contains_valid_tx();
         }
         return true;
     }
