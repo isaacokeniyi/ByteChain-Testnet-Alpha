@@ -12,6 +12,7 @@ class Transaction {
     amount: number;
     sender: string;
     recipient: string;
+    fee: number;
     tx_id: string;
     signature: string;
     nonce: number;
@@ -22,6 +23,7 @@ class Transaction {
         amount: number,
         sender: string,
         recipient: string,
+        fee: number,
         timestamp: number,
         publicKey: string,
         signature: string,
@@ -30,6 +32,7 @@ class Transaction {
         this.amount = amount;
         this.sender = sender;
         this.recipient = recipient;
+        this.fee = fee;
         this.timestamp = timestamp;
         this.publicKey = publicKey;
         this.signature = signature;
@@ -38,7 +41,7 @@ class Transaction {
     }
 
     private get_signing_data(): string {
-        return `${this.amount}${this.sender}${this.recipient}${this.publicKey}${this.nonce}${this.timestamp}`;
+        return `${this.amount}${this.sender}${this.recipient}${this.fee}${this.publicKey}${this.nonce}${this.timestamp}`;
     }
 
     private compute_tx_id(): string {
