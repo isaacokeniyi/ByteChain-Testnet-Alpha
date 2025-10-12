@@ -44,7 +44,7 @@ class Block {
         }
     }
 
-    contain_valid_tx() {
+    contain_valid_txs() {
         for (const tx of this.transactions) {
             if (!tx.is_valid_tx()) {
                 throw new Error(`Invalid transaction at block ${this.block_header.block_height}`);

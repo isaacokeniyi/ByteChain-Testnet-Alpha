@@ -1,6 +1,6 @@
 import base58 from "bs58";
 import elliptic_pkg from 'elliptic';
-import { BC_NAME } from "../utils/constants.js";
+import { MAX_TIME_DIFF_TX, BC_NAME } from "../utils/constants.js";
 import { hash_tobuf, hash_tostr } from "../utils/crypto.js";
 
 
@@ -51,18 +51,14 @@ class Transaction {
         return id;
     }
 
-    get_tx_nonce(): number {
-        return this.nonce;
-    }
-
     verify_tx_sig(): boolean {
         if (this.sender === BC_NAME) {
             return true;
         }
 
-        const { amount, sender, recipient, publicKey, signature, nonce, timestamp } = this;
+        const { amount, sender, recipient, fee, publicKey, signature, nonce, timestamp } = this;
 
-        if (amount === undefined || !sender || !recipient || !signature || nonce === undefined || timestamp === undefined) {
+        if (amount === undefined || !sender || !recipient || fee === undefined || !signature || nonce === undefined || timestamp === undefined) {
             throw new Error("Incomplete transaction data.")
         }
         
@@ -104,13 +100,11 @@ class Transaction {
         }
     }
 
-    // Todo implement this method
     is_valid_tx(): boolean {
         try {
             const currentTime = Date.now();
-            const MAX_TIME_DIFF = 300000;
-
-            if (Math.abs(currentTime - this.timestamp) > MAX_TIME_DIFF) {
+            
+            if (Math.abs(currentTime - this.timestamp) > MAX_TIME_DIFF_TX) {
                 throw new Error('Transaction timestamp is too old or in future');
             }
 

@@ -30,7 +30,7 @@ class BlockChain {
     genesis_block() {
         const gen_amount = 1000000000;
         const gen_recipient = "BC-GEN";
-        const tx = new Transaction(gen_amount, BC_NAME, gen_recipient, Date.now(), BC_NAME_PUB, "", 0)
+        const tx = new Transaction(gen_amount, BC_NAME, gen_recipient, 0, Date.now(), BC_NAME_PUB, "", 0)
         this.tx_pool.push(tx);
         const txs = this.tx_pool;
         const new_block = new Block(0, MIN_DIFFICULTY, GEN_PREV_HASH, txs);
@@ -110,15 +110,11 @@ class BlockChain {
     }
 
     add_new_tx(tx: Transaction): Transaction {
-        const { amount, sender, recipient, fee } = tx;
-        const nonce = tx.get_tx_nonce();
+        const { amount, sender, recipient, fee, nonce } = tx;
      
         if (amount === undefined || !sender || !recipient || fee === undefined || nonce === undefined) {
             throw new Error('Transaction data is incomplete')
         }
-
-        const prev_nonce = this.get_nonce(sender);
-        const bc_fee = this.calculate_dynamic_fee();
 
         try {
             if (sender === BC_NAME) {
@@ -128,14 +124,12 @@ class BlockChain {
 
             if(amount < 0) throw new Error("Invalid amount");
 
-            if (fee < bc_fee) throw new Error("Fee not valid for current chain operation");
+            if (fee < this.calculate_dynamic_fee()) throw new Error("Fee not valid for current chain operation");
 
-            if (nonce !== prev_nonce + 1) throw new Error("Invalid nonce value");
+            if (nonce !== this.get_nonce(sender) + 1) throw new Error("Invalid nonce value");
 
             if (!tx.verify_tx_sig()) throw new Error("Invalid Transaction signature");
             
-            this.update_nonce(sender);
-            this.debit_addr(sender, amount + fee);
             this.tx_pool.push(tx);
 
             return tx;
@@ -152,11 +146,13 @@ class BlockChain {
             let t_fee = 0;
             for (const tx of this.tx_pool) t_fee += tx.fee;
 
-            const fee_tx = new Transaction(t_fee, BC_NAME, VANITY_ADDR, Date.now(), BC_NAME_PUB, "", 0);
+            const fee_tx = new Transaction(t_fee, BC_NAME, VANITY_ADDR, 0, Date.now(), BC_NAME_PUB, "", 0);
             this.add_new_tx(fee_tx);
             const transactions = this.tx_pool;
             
             for (const tx of transactions) {
+                this.update_nonce(tx.sender);
+                this.debit_addr(tx.sender, tx.amount + tx.fee);
                 this.credit_addr(tx.recipient, tx.amount);
             }
 
@@ -172,7 +168,7 @@ class BlockChain {
 
     mine_block(miner_addr: string): Block {
         try {
-            const reward_tx = new Transaction(BLOCK_REWARD, BC_NAME, miner_addr, Date.now(), BC_NAME_PUB, "", 0);
+            const reward_tx = new Transaction(BLOCK_REWARD, BC_NAME, miner_addr, 0, Date.now(), BC_NAME_PUB, "", 0);
 
             this.add_new_tx(reward_tx);
 
@@ -212,7 +208,7 @@ class BlockChain {
 
     static is_valid_chain(chain: Block[]): boolean {
         for (const block of chain) {
-            block.contains_valid_tx();
+            block.contain_valid_txs();
         }
         return true;
     }
@@ -225,11 +221,12 @@ class BlockChain {
             this.addr_state.clear();
             for (const block of this.chain) {
                 for (const tx of block.transactions) {
-                    this.credit_addr(tx.recipient, tx.amount);
                     if (tx.sender !== BC_NAME) {
                         this.update_nonce(tx.sender);
-                        this.debit_addr(tx.sender, tx.amount);
+                        this.debit_addr(tx.sender, tx.amount + tx.fee);
                     }
+                    
+                    this.credit_addr(tx.recipient, tx.amount);
                 }
             }
         }

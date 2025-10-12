@@ -5,7 +5,7 @@ import cors from "cors";
 import P2PNode from "../network/p2p.js";
 import BlockChain from "./blockchain.js";
 import Transaction from "./transaction.js";
-import { print, Tx_Type } from "../utils/constants.js";
+import { print } from "../utils/constants.js";
 import Account from "../accounts/account.js";
 import { Server } from "socket.io";
 
@@ -61,6 +61,7 @@ class BCNode {
                     tx_data.amount,
                     tx_data.sender,
                     tx_data.recipient,
+                    tx_data.fee,
                     tx_data.timestamp,
                     tx_data.publicKey,
                     tx_data.signature,
@@ -94,6 +95,11 @@ class BCNode {
 
             const nonce = this.bytechain.get_nonce(addr);
             res.status(200).json({ address: addr, nonce });
+        });
+
+        this.app.get("/fee", (_: Request, res: Response) => {
+            const fee = this.bytechain.calculate_dynamic_fee();
+            res.status(200).json({ fee });
         });
 
         this.app.get("/chain", (_: Request, res: Response) => {

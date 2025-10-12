@@ -14,6 +14,7 @@ function serialize_tx(tx: Transaction): Record<string, any> {
         amount: tx.amount,
         sender: tx.sender,
         recipient: tx.recipient,
+        fee: tx.fee,
         signature: tx.signature,
         nonce: tx.nonce,
         timestamp: tx.timestamp,
@@ -35,6 +36,7 @@ function deserialize_tx(data: Record<string, any>): Transaction {
         data.amount === undefined ||
         data.sender === undefined ||
         data.recipient === undefined ||
+        data.fee === undefined ||
         data.signature === undefined ||
         data.nonce === undefined ||
         data.timestamp === undefined ||
@@ -47,6 +49,7 @@ function deserialize_tx(data: Record<string, any>): Transaction {
         data.amount,
         data.sender,
         data.recipient,
+        data.fee,
         data.publicKey,
         data.signature,
         data.nonce,
