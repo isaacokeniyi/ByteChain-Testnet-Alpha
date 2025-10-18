@@ -29,7 +29,6 @@ class Block {
     set_block_props(): { n_nonce: number, hash: string } {
         try {
             this.block_header.timestamp = Date.now();
-
             this.block_header.merkleroot = calc_merkleroot<Transaction>(this.transactions);
 
             const block_data_str = this.get_base_hash_input()
@@ -45,20 +44,15 @@ class Block {
         }
     }
 
-    // Todo implement this method
-    // contain_valid_tx() {
-    //     for (const tx of this.transactions) {
-    //         if (!tx) {
-    //             throw new Error("Block does not contain any tx.")
-    //         }
+    contain_valid_txs() {
+        for (const tx of this.transactions) {
+            if (!tx.is_valid_tx()) {
+                throw new Error(`Invalid transaction at block ${this.block_header.block_height}`);
+            }
+        }
 
-    //         if (!tx.is_valid_tx()) {
-    //             return false;
-    //         }
-    //     }
-
-    //     return true;
-    // }
+        return true;
+    }
 }
 
 

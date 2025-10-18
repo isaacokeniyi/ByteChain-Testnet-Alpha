@@ -1,6 +1,5 @@
 import Transaction from '../core/transaction.js';
 import Block from '../core/block.js';
-import { Tx_Type } from './constants.js'
 
 /**
  * Serializes a Transaction object into a plain JavaScript object or JSON string.
@@ -12,22 +11,15 @@ import { Tx_Type } from './constants.js'
  */
 function serialize_tx(tx: Transaction): Record<string, any> {
     const obj: Record<string, any> = {
-        type: tx.type,
         amount: tx.amount,
         sender: tx.sender,
         recipient: tx.recipient,
+        fee: tx.fee,
         signature: tx.signature,
         nonce: tx.nonce,
         timestamp: tx.timestamp,
         publicKey: tx.publicKey,
     };
-
-    if (tx.bytecode !== undefined) {
-        obj.bytecode = tx.bytecode;
-    }
-    if (tx.contract_addr !== undefined) {
-        obj.contract_addr = tx.contract_addr;
-    }
 
     return obj;
 }
@@ -41,10 +33,10 @@ function serialize_tx(tx: Transaction): Record<string, any> {
  */
 function deserialize_tx(data: Record<string, any>): Transaction {
     if (
-        data.type === undefined ||
         data.amount === undefined ||
         data.sender === undefined ||
         data.recipient === undefined ||
+        data.fee === undefined ||
         data.signature === undefined ||
         data.nonce === undefined ||
         data.timestamp === undefined ||
@@ -53,20 +45,15 @@ function deserialize_tx(data: Record<string, any>): Transaction {
         throw new Error('Missing essential transaction data during deserialization.');
     }
 
-    if (!Object.values(Tx_Type).includes(data.type)) {
-        throw new Error(`Invalid transaction type: ${data.type}`);
-    }
-
     const tx = new Transaction(
         data.amount,
         data.sender,
         data.recipient,
-        data.type as Tx_Type,
+        data.fee,
         data.publicKey,
         data.signature,
         data.nonce,
         data.timestamp,
-        data.bytecode,
     );
 
     return tx;

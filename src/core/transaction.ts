@@ -1,6 +1,6 @@
 import base58 from "bs58";
 import elliptic_pkg from 'elliptic';
-import { BC_NAME, Tx_Type } from "../utils/constants.js";
+import { MAX_TIME_DIFF_TX, BC_NAME } from "../utils/constants.js";
 import { hash_tobuf, hash_tostr } from "../utils/crypto.js";
 
 
@@ -9,13 +9,11 @@ const ec = new EC('secp256k1');
 
 
 class Transaction {
-    type: Tx_Type;
     amount: number;
     sender: string;
     recipient: string;
+    fee: number;
     tx_id: string;
-    bytecode?: string; 
-    contract_addr?: string;
     signature: string;
     nonce: number;
     timestamp: number;
@@ -25,36 +23,25 @@ class Transaction {
         amount: number,
         sender: string,
         recipient: string,
-        type: Tx_Type,
+        fee: number,
         timestamp: number,
         publicKey: string,
         signature: string,
         nonce: number,
-        bytecode?: string,
     ) {
         this.amount = amount;
         this.sender = sender;
         this.recipient = recipient;
-        this.type = type;
+        this.fee = fee;
         this.timestamp = timestamp;
         this.publicKey = publicKey;
         this.signature = signature;
         this.nonce = nonce;
         this.tx_id = this.compute_tx_id();;
-
-        if (this.type === Tx_Type.CONTRACT || bytecode !== undefined) {
-            this.bytecode = bytecode;
-        }
     }
 
     private get_signing_data(): string {
-        if (this.type === Tx_Type.BYTE_TX) {
-            return `${this.type}${this.amount}${this.sender}${this.recipient}${this.publicKey}${this.nonce}${this.timestamp}`;
-        } else if ((this.bytecode !== undefined || this.contract_addr !== undefined) || this.type === Tx_Type.CONTRACT) {
-            return `${this.type}${this.amount}${this.sender}${this.recipient}${this.publicKey}${this.nonce}${this.timestamp}${this.bytecode}${this.contract_addr}`;
-        }
-        
-        throw new Error('Unknown transaction type');
+        return `${this.amount}${this.sender}${this.recipient}${this.fee}${this.publicKey}${this.nonce}${this.timestamp}`;
     }
 
     private compute_tx_id(): string {
@@ -64,23 +51,14 @@ class Transaction {
         return id;
     }
 
-    get_tx_nonce(): number {
-        return this.nonce;
-    }
-
-    compute_contract_addr() {
-        const c_addr = hash_tostr(this.get_signing_data());
-        this.contract_addr = c_addr;
-    }
-
     verify_tx_sig(): boolean {
         if (this.sender === BC_NAME) {
             return true;
         }
 
-        const { amount, sender, recipient, publicKey, signature, nonce, timestamp } = this;
+        const { amount, sender, recipient, fee, publicKey, signature, nonce, timestamp } = this;
 
-        if (amount === undefined || !sender || !recipient || !signature || nonce === undefined || timestamp === undefined) {
+        if (amount === undefined || !sender || !recipient || fee === undefined || !signature || nonce === undefined || timestamp === undefined) {
             throw new Error("Incomplete transaction data.")
         }
         
@@ -122,13 +100,11 @@ class Transaction {
         }
     }
 
-    // Todo implement this method
     is_valid_tx(): boolean {
         try {
             const currentTime = Date.now();
-            const MAX_TIME_DIFF = 300000;
-
-            if (Math.abs(currentTime - this.timestamp) > MAX_TIME_DIFF) {
+            
+            if (Math.abs(currentTime - this.timestamp) > MAX_TIME_DIFF_TX) {
                 throw new Error('Transaction timestamp is too old or in future');
             }
 

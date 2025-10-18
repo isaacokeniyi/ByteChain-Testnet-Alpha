@@ -5,7 +5,7 @@ import cors from "cors";
 import P2PNode from "../network/p2p.js";
 import BlockChain from "./blockchain.js";
 import Transaction from "./transaction.js";
-import { print, Tx_Type } from "../utils/constants.js";
+import { print } from "../utils/constants.js";
 import Account from "../accounts/account.js";
 import { Server } from "socket.io";
 
@@ -56,72 +56,26 @@ class BCNode {
         this.app.post("/tx/send", async (req: Request, res: Response) => {
             try {
                 const tx_data = req.body;
+                
+                const new_tx = new Transaction(
+                    tx_data.amount,
+                    tx_data.sender,
+                    tx_data.recipient,
+                    tx_data.fee,
+                    tx_data.timestamp,
+                    tx_data.publicKey,
+                    tx_data.signature,
+                    tx_data.nonce
+                );
 
-                if (tx_data.type === Tx_Type.CONTRACT) {
-                    const new_ctx = new Transaction(
-                        tx_data.amount,
-                        tx_data.sender,
-                        tx_data.recipient,
-                        tx_data.type,
-                        tx_data.timestamp,
-                        tx_data.publicKey,
-                        tx_data.signature,
-                        tx_data.nonce,
-                        tx_data.bytecode
-                    );  
-
-                    const tx_result = this.bytechain.add_new_tx(new_ctx);
-                    if (tx_result) {
-                        this.p2p.publishTransaction(new_ctx);
-                        return res.status(200).json({ status: "success", msg: "Transaction added successfully." });
-                    } else {
-                        return res
-                          .status(200)
-                          .json({ status: "error", msg: "Failed to add transaction. Invalid or Insufficient fund" });
-                    }
-                } else if (tx_data.type === Tx_Type.CONTRACT_CALL) {
-                    const new_cctx = new Transaction(
-                        tx_data.amount,
-                        tx_data.sender,
-                        tx_data.recipient,
-                        tx_data.type,
-                        tx_data.timestamp,
-                        tx_data.publicKey,
-                        tx_data.signature,
-                        tx_data.nonce,
-                        tx_data.contract_addr
-                    );
-
-                    const tx_result = this.bytechain.add_new_tx(new_cctx);
-                    if (tx_result) {
-                        this.p2p.publishTransaction(new_cctx);
-                        return res.status(200).json({ status: "success", msg: "Transaction added successfully." });
-                    } else {
-                        return res
-                          .status(200)
-                          .json({ status: "error", msg: "Failed to add transaction. Invalid or Insufficient fund" });
-                    }
+                const tx_result = this.bytechain.add_new_tx(new_tx);
+                if (tx_result) {
+                    this.p2p.publishTransaction(new_tx);
+                    return res.status(200).json({ status: "success", msg: "Transaction added successfully." });
                 } else {
-                    const new_btx = new Transaction(
-                        tx_data.amount,
-                        tx_data.sender,
-                        tx_data.recipient,
-                        tx_data.type,
-                        tx_data.timestamp,
-                        tx_data.publicKey,
-                        tx_data.signature,
-                        tx_data.nonce
-                    );
-
-                    const tx_result = this.bytechain.add_new_tx(new_btx);
-                    if (tx_result) {
-                        this.p2p.publishTransaction(new_btx);
-                        return res.status(200).json({ status: "success", msg: "Transaction added successfully." });
-                    } else {
-                        return res
-                          .status(200)
-                          .json({ status: "error", msg: "Failed to add transaction. Invalid or Insufficient fund" });
-                    }
+                    return res
+                        .status(200)
+                        .json({ status: "error", msg: "Failed to add transaction. Invalid or Insufficient fund" });
                 }
             } catch (err: any) {
                 console.error(`Error processing /send_tx: ${err}`);
@@ -132,15 +86,20 @@ class BCNode {
         this.app.get("/balance/:address", (req: Request, res: Response) => {
             const addr = req.params.address;
 
-            const balance = this.bytechain.addr_bal.get(addr) ?? 0;
+            const balance = this.bytechain.get_balance(addr);
             res.status(200).json({ address: addr, balance });
         });
 
         this.app.get("/nonce/:address", (req: Request, res: Response) => {
             const addr = req.params.address;
 
-            const nonce = this.bytechain.addr_nonce.get(addr) ?? 0;
+            const nonce = this.bytechain.get_nonce(addr);
             res.status(200).json({ address: addr, nonce });
+        });
+
+        this.app.get("/fee", (_: Request, res: Response) => {
+            const fee = this.bytechain.calculate_dynamic_fee();
+            res.status(200).json({ fee });
         });
 
         this.app.get("/chain", (_: Request, res: Response) => {

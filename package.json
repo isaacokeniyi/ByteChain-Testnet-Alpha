@@ -4,7 +4,7 @@
   "description": "This is the first testnet of the bytechain network",
   "type": "module",
   "scripts": {
-    "bcnode": "tsc && node ./dist/main"
+    "bc-node": "tsc && node ./dist/main"
   },
   "keywords": [
     "BlockChain",

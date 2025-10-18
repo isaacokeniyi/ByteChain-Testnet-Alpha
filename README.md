@@ -42,24 +42,12 @@ To run a ByteChain Testnet Alpha node locally, follow these steps:
     npm install
     ```
 
-3.  **Run the Testnet Node(s)**:
-    You can start multiple nodes to see the P2P network in action. Each node should listen on a unique `LIBP2P_PORT` and `HTTP_PORT`.
+3.  **Run the Testnet Node**:
+    Go to the bc-setup.json file and add the `p2p_port`, `api_port` and `blockchain_addr` you want to use for that node:
 
-    * **Terminal 1 (Node 1 - Primary)**:
-        ```bash
-        LIBP2P_PORT=4001 HTTP_PORT=3001 npm run bcnode
-        ```
-
-    * **Terminal 2 (Node 2 - Peer)**:
-        ```bash
-        LIBP2P_PORT=4002 HTTP_PORT=3002 npm run bcnode
-        ```
-
-    * **Terminal 3 (Node 3 - Another Peer)**:
-        ```bash
-        LIBP2P_PORT=4003 HTTP_PORT=3003 npm run bcnode
-        ```
-    You should observe nodes discovering each other and exchanging blocks and transactions in their logs, with blocks being mined automatically.
+    ```bash
+    npm run bc-node
+    ```
 
 ## Usage (Under Development)
 
@@ -68,9 +56,9 @@ To run a ByteChain Testnet Alpha node locally, follow these steps:
 Each running node exposes an HTTP API for client interaction. You can use tools like `curl`, Postman, or your web browser to interact.
 
 * **View the Blockchain**:
-    * Open your browser to `http://localhost:3001/chain` (replace `3001` with your node's `HTTP_PORT`).
+    * Open your browser to `http://localhost:3001/chain` (replace `3001` with your node's `api_port`).
 * **View Pending Transactions**:
-    * `http://localhost:3001/transactions/pool`
+    * `http://localhost:3001/tx/pool`
 * **Check Account Balance**:
     * `http://localhost:3001/balance/<YOUR_ADDRESS>` (Replace `<YOUR_ADDRESS>` with an actual ByteChain address from the node's logs, or an address you generated in your test script).
 * **Submit a Signed Transaction**:
@@ -80,10 +68,11 @@ Each running node exposes an HTTP API for client interaction. You can use tools 
         "amount": 10,
         "sender": "SENDER_BYTECHAIN_ADDRESS",
         "recipient": "RECIPIENT_BYTECHAIN_ADDRESS",
+        "fee": FEE_YOU_CAN_PAY,
         "publicKey": "SENDER_PUBLIC_KEY",
         "signature": "TRANSACTION_SIGNATURE",
         "nonce": SENDER_NONCE
-    }' http://localhost:3001/transactions/send
+    }' http://localhost:3001/tx/send
     ```
 * **Trigger a Manual Block Mine (For Testing/Debugging Only)**:
     While nodes mine automatically, this endpoint can be used to force a block mine immediately for testing purposes, rather than waiting for the automatic interval.
